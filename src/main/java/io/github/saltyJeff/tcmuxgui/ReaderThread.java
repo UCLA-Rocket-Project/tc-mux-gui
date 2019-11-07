@@ -99,6 +99,9 @@ public class ReaderThread extends Thread {
             if(output != null) {
                 output.close();
             }
+            if(!newFile.exists()) {
+                newFile.createNewFile();
+            }
             output = new PrintWriter(new FileWriter(newFile));
             output.println("tc0,tc1,tc2,tc3,tc4,tc5,tc6,tc7,dt");
             System.out.println("Writing to file: "+newFile.getAbsolutePath());
