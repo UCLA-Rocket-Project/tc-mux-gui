@@ -1,12 +1,20 @@
+buildscript {
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath 'org.openjfx:javafx-plugin:0.0.8'
+    }
+}
 plugins {
-    id 'com.github.johnrengelman.shadow' version '4.0.2'
+    id 'org.openjfx.javafxplugin' version '0.0.8'
     id 'application'
     id 'java'
 }
-
 group 'io.github.saltyJeff'
 version '1.0-SNAPSHOT'
-
 sourceCompatibility = 1.8
 
 repositories {
@@ -15,6 +23,10 @@ repositories {
 
 application {
     mainClassName = 'io.github.saltyJeff.tcmuxgui.Main'
+}
+
+javafx {
+    modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.swing' ]
 }
 
 dependencies {
