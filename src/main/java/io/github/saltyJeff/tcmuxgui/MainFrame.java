@@ -6,6 +6,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.io.Reader;
+import java.util.Arrays;
 import java.util.List;
 
 public class MainFrame extends JFrame implements ActionListener {
@@ -18,7 +19,7 @@ public class MainFrame extends JFrame implements ActionListener {
         muxDisplays = new MuxDisplayTable();
         add(muxDisplays);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        timer = new Timer(50, this);
+        timer = new Timer(1000, this);
         pack();
         setResizable(false);
         setTitle("TC-Mux");

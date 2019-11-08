@@ -3,6 +3,7 @@ package io.github.saltyJeff.tcmuxgui;
 import com.fazecast.jSerialComm.SerialPort;
 
 import java.io.*;
+import java.util.Arrays;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 
@@ -27,6 +28,7 @@ public class ReaderThread extends Thread {
     public static boolean toggle() {
         if(inst.executing == false) {
             inst.prepRecording();
+            inst.setUnits(inst.units);
         }
         inst.executing = !inst.executing;
         System.out.println("Recording: "+inst.executing);
@@ -49,19 +51,25 @@ public class ReaderThread extends Thread {
             }
             try {
                 String nextLine = input.nextLine();
-                System.out.println("LINE: " + nextLine);
-                String[] tokens = nextLine.split("\t");
-                if (tokens.length < 8) {
-                    System.err.println("Received an incomplete frame: " + nextLine + ", ignoring");
+                if(nextLine.isEmpty()) {
                     continue;
                 }
-                for (int i = 0; i < tokens.length; i++) {
-                    readings[i] = Double.parseDouble(tokens[i]);
+                char c = nextLine.charAt(0);
+                if(!Character.isDigit(c) && c != '-') {
+                    System.out.println("NON-DATA: "+nextLine);
+                    continue;
                 }
+                String[] tokens = nextLine.split("\t");
+                //System.out.println("LINE: " + Arrays.toString(tokens));
+                if (tokens.length >= 8)  {
+                    for (int i = 0; i < tokens.length - 1; i++) {
+                        readings[i] = Double.parseDouble(tokens[i]);
+                    }
+                }
+                deltaMs = Integer.parseInt(tokens[tokens.length - 1]);
                 if (output != null) {
                     output.print(String.join(",", tokens));
                 }
-                deltaMs = Integer.parseInt(tokens[tokens.length - 1]);
             }
             catch(Exception e) {
                 if(!(e instanceof NoSuchElementException)) {
@@ -73,8 +81,8 @@ public class ReaderThread extends Thread {
     }
     void prepRecording() {
         if(port != null && input == null) {
-            boolean opened = port.openPort();
-            System.out.println(opened);
+            //boolean opened = port.openPort();
+            //System.out.println(opened);
             input = new Scanner(port.getInputStream());
             System.out.println("Opening port: "+port.getSystemPortName());
         }
@@ -111,8 +119,9 @@ public class ReaderThread extends Thread {
     public void setPort(SerialPort newPort) {
         stopRecording();
         port = newPort;
+        port.openPort();
         port.setComPortParameters(115200, 8, 1, 0);
-        setUnits(units);
+        port.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER,0, 0);
     }
     public void setFile(File newFile) {
         stopRecording();
@@ -121,7 +130,10 @@ public class ReaderThread extends Thread {
     public void setUnits(ReadUnits newUnits) {
         this.units = newUnits;
         if(port != null) {
-            port.writeBytes((units.toChar()+"a\n").getBytes(), 3);
+            System.out.println("WRITING UNITS");
+            String cmd = (units.toChar())+"a\n";
+            port.writeBytes(cmd.getBytes(), 4);
+            System.out.println(cmd+": "+port.bytesAwaitingWrite());
         }
     }
     public ReadUnits units() {
