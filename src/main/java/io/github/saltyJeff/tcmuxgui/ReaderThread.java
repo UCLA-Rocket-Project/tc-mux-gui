@@ -8,9 +8,11 @@ import java.util.Scanner;
 
 public class ReaderThread extends Thread {
     double[] readings = new double[8];
+    int deltaMs = 0;
     private SerialPort port;
     private Scanner input;
     private PrintWriter output;
+    private File file;
     private static ReaderThread inst = null;
     private ReadUnits units = ReadUnits.F;
     private boolean executing = false;
@@ -23,23 +25,18 @@ public class ReaderThread extends Thread {
         return inst;
     }
     public static boolean toggle() {
+        if(inst.executing == false) {
+            inst.prepRecording();
+        }
         inst.executing = !inst.executing;
-        System.out.println("READER THREAD RUNNING: "+inst.executing);
+        System.out.println("Recording: "+inst.executing);
         return inst.executing;
     }
+    public boolean executing() {
+        return executing;
+    }
     private ReaderThread() {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("Shutting down worker");
-            inst.executing = false;
-            if(port != null) {
-                input.close();
-                port.closePort();
-                port = null;
-            }
-            if(output != null) {
-                output.close();
-            }
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> stopRecording()));
     }
     @Override
     public void run () {
@@ -64,52 +61,62 @@ public class ReaderThread extends Thread {
                 if (output != null) {
                     output.print(String.join(",", tokens));
                 }
+                deltaMs = Integer.parseInt(tokens[tokens.length - 1]);
             }
             catch(Exception e) {
                 if(!(e instanceof NoSuchElementException)) {
-                    System.err.println(e);
                     e.printStackTrace();
                 }
             }
         }
-        if(port != null) {
-            input.close();
-            port.closePort();
-            port = null;
+
+    }
+    void prepRecording() {
+        if(port != null && input == null) {
+            boolean opened = port.openPort();
+            System.out.println(opened);
+            input = new Scanner(port.getInputStream());
+            System.out.println("Opening port: "+port.getSystemPortName());
         }
-        if(output != null) {
-            output.close();
+        if(file != null && output == null) {
+            try {
+                if(!file.exists()) {
+                    file.createNewFile();
+                }
+                output = new PrintWriter(file);
+                output.println("tc0,tc1,tc2,tc3,tc4,tc5,tc6,tc7,dt");
+                output.flush();
+                System.out.println("Writing to file: "+file.getAbsolutePath());
+            }
+            catch(Exception e) {
+                System.err.println("ERROR OPENING FILE FOR RECORDING");
+                e.printStackTrace();
+            }
         }
     }
-
-    public void setPort(SerialPort newPort) {
-        if(port != null) {
+    void stopRecording () {
+        if(input != null) {
             input.close();
             port.closePort();
+            input = null;
+            System.out.println("Closed port");
         }
-        System.out.println("Opening port: "+newPort.getSystemPortName());
+        if(output != null) {
+            output.flush();
+            output.close();
+            output = null;
+            System.out.println("Closed file");
+        }
+    }
+    public void setPort(SerialPort newPort) {
+        stopRecording();
         port = newPort;
         port.setComPortParameters(115200, 8, 1, 0);
-        port.openPort();
-        input = new Scanner(port.getInputStream());
         setUnits(units);
     }
     public void setFile(File newFile) {
-        try {
-            if(output != null) {
-                output.close();
-            }
-            if(!newFile.exists()) {
-                newFile.createNewFile();
-            }
-            output = new PrintWriter(new FileWriter(newFile));
-            output.println("tc0,tc1,tc2,tc3,tc4,tc5,tc6,tc7,dt");
-            System.out.println("Writing to file: "+newFile.getAbsolutePath());
-        }
-        catch (Exception e) {
-            System.err.println(e);
-            e.printStackTrace();
-        }
+        stopRecording();
+        file = newFile;
     }
     public void setUnits(ReadUnits newUnits) {
         this.units = newUnits;
